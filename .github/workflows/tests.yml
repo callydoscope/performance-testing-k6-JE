@@ -1,0 +1,84 @@
+name: Performance tests
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  workflow_dispatch:
+      inputs:
+        logLevel:
+          description: 'Log level'
+          required: true
+          default: 'warning'
+          type: choice
+          options:
+          - info
+          - warning
+          - debug
+        # tags:
+        #   description: 'Tags para os cenarios de teste'
+        #   required: false
+        #   type: boolean
+        environment:
+          description: 'Ambiente para executar os testes'
+          type: choice
+          options:
+            - main
+          required: true
+
+  # schedule:
+  #   # * is a special character in YAML so you have to quote this string
+  #   - cron: '0 9 * * *'
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  k6_local_test:
+    name: k6 test run on Ubuntu
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Download and install k6 (Ubuntu)
+      - name: Download and install deb packages
+        run: |
+          sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      # Setup nodejs
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      # Install npm packages
+      - name: Install npm packages
+        run: npm install
+
+      # Run k6 tests
+      - name: Run k6 tests
+        run: |
+          echo "Executando teste - 10vu"
+          echo "Log level: $LEVEL"
+          echo "Tags: $TAGS"
+          echo "Environment: $ENVIRONMENT"
+          npm run loadTest
+
+        env:
+          LEVEL: ${{ inputs.logLevel }}
+          TAGS: ${{ inputs.tags }}
+          ENVIRONMENT: ${{ inputs.environment }}
+
+     # Upload performance test results
+      - name: Upload performance test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: k6-report
+          path: |
+            tests/reports/summary.json
+            tests/reports/fullFlowLoad.html
